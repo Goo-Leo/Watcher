@@ -1,19 +1,16 @@
+import os
 import sys
 import cv2
-import os
-import numpy as np
-import asyncio
-
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QLineEdit
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 
 
-class Signin(QtWidgets.QDialog):
+class Signup(QtWidgets.QDialog):
     def __init__(self):
-        super(Signin, self).__init__()
-        self.setWindowTitle("Signin")
+        super(Signup, self).__init__()
+        self.setWindowTitle("Sign up")
         self.setGeometry(100, 100, 300, 150)
 
         self.name_label = QLabel("Name:", self)
@@ -26,23 +23,21 @@ class Signin(QtWidgets.QDialog):
         self.id_input = QLineEdit(self)
         self.id_input.move(80, 50)
 
-        self.start_button = QPushButton("Sign in", self)
+        self.start_button = QPushButton("Sign up", self)
         self.start_button.move(80, 90)
         self.start_button.clicked.connect(self.start_recognition)
 
         self.show()
 
-        def start_recognition(self):
-            name = self.name_input.text()
-            id_num = self.id_input.text()
+    def start_recognition(self):
+        name = self.name_input.text()
+        id_num = self.id_input.text()
+        face_recognition_thread = FaceRecognitionThread()
+        face_recognition_thread.frame_signal.connect(self.update_frame)
+        pass
 
-            self.face_recognition_thread.name = name
-            self.face_recognition_thread.id_num = id_num
-
-            pass
-
-        def update_frame(self, pixmap):
-            self.video_label.setPixmap(pixmap)
+    def update_frame(self, pixmap):
+        self.video_label.setPixmap(pixmap)
 
 
 class FaceRecognitionThread(QThread):
@@ -51,8 +46,8 @@ class FaceRecognitionThread(QThread):
     def __init__(self):
         super().__init__()
 
+        self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.camera = cv2.VideoCapture(0)
-        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
     def run(self):
         while True:
@@ -74,5 +69,5 @@ class FaceRecognitionThread(QThread):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    Signin_dialog = Signin()
+    Signup_dialog = Signup()
     sys.exit(app.exec_())
