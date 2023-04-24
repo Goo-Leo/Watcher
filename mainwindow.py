@@ -1,7 +1,9 @@
+import sys
+
 import cv2
 from PyQt5 import QtCore
 from PyQt5.QtCore import QDateTime
-from PyQt5.QtWidgets import QMainWindow, QLCDNumber, QGraphicsBlurEffect, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QMainWindow, QLCDNumber, QGraphicsBlurEffect, QApplication
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.uic import loadUi
 
@@ -9,7 +11,7 @@ from PyQt5.uic import loadUi
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        loadUi('ui/mainwindow.ui', self)  # load ui
+        loadUi('UI/mainwindow.ui', self)  # load UI
         self.show()
         self.cap = cv2.VideoCapture('/dev/video-camera0')  # open camera
 
@@ -38,21 +40,26 @@ class MainWindow(QMainWindow):
         self.lcdNumber.display(datetime.toString("hh:mm:ss"))  # show time
 
     def loadMenu(self):
-        # self.label.setGraphicsEffect(None)
-        # self.lcdNumber.setEnabled(False)
-        # self.lcdNumber.setVisible(False)
-        # self.pushButton.setEnabled(False)
         self.menu = Menu()
         self.menu.show()
+        self.hide()
 
 
 class Menu(QMainWindow):
     def __init__(self):
         super().__init__()
-        loadUi('ui/menu.ui', self)  # load menu.ui
+        loadUi('UI/menu.ui', self)  # load menu.UI
         self.Home.clicked.connect(self.loadMainWindow)
         self.show()
 
     def loadMainWindow(self):
         self.mainwindow = MainWindow()
         self.mainwindow.show()
+        self.hide()
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
