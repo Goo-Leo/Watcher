@@ -1,11 +1,20 @@
 import cv2
-import numpy as np
-import matplotlib.pyplot as plt
 import sys
 import os
+import mysql.connector
 from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QIcon, QPixmap, QImage
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QMessageBox
+import encoder
+
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="boss",
+    password="password",
+    database="myman"
+)
+mycursor = mydb.cursor()
 
 
 class Signup(QWidget):
@@ -48,6 +57,7 @@ class Signup(QWidget):
 
         # Create face recognition thread
         self.face_recognition_thread = FaceRecognitionThread()
+        # self.finished.
 
     def start_capture(self):
         self.setFixedSize(680, 640)
@@ -55,8 +65,8 @@ class Signup(QWidget):
         namestr = self.name_input.text()
         idstr = self.id_input.text()
 
-        if os.path.exists("../Faces/{}".format(namestr)) == 0:
-            os.makedirs("../Faces/{}".format(namestr), mode=0o755)
+        if os.path.exists("./Faces/{}".format(namestr)) == 0:
+            os.makedirs("./Faces/{}".format(namestr), mode=0o755)
 
         self.face_recognition_thread.set_name_id(namestr, idstr)
         self.face_recognition_thread.start()
@@ -67,12 +77,16 @@ class Signup(QWidget):
     def update_image(self, pixmap):
         self.camera_frame.setPixmap(pixmap)
 
+    def recollecting(self):
+        self.setFixedSize(400, 200)
+
 
 class FaceRecognitionThread(QtCore.QThread):
     image_data = QtCore.pyqtSignal(QPixmap)  # define a signal for frame update
     face_cascade = None
     name = ""
     id = ""
+    finished = pyqtSignal()
 
     def __init__(self):
         super(FaceRecognitionThread, self).__init__()
@@ -81,20 +95,49 @@ class FaceRecognitionThread(QtCore.QThread):
         self.counter = QtCore.QTimer(self)
         self.count = 0
 
+        self.stop_flag = False
+
     def set_name_id(self, name_input, id_input):
         self.name = name_input
         self.id = id_input
+        # query = "SELECT * FROM usr_info WHERE id = %s"
+        # mycursor.execute(query, id_input)
+        # result = mycursor.fetchall()
+        #
+        # if len(result) > 0:
+        #     msg = QMessageBox()
+        #     msg.setIcon(QMessageBox.Warning)
+        #     msg.setText("数据已存在")
+        #     msg.setInformativeText("ID为%s的数据已经存在，是否更新？" % id_input)
+        #     msg.setWindowTitle("提示")
+        #     msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        #     if msg.exec_() == QMessageBox.Yes:
+        #         # 如果用户选择更新，则执行更新操作
+        #         query = "UPDATE mytable SET name = %s, status = %s WHERE id = %s"
+        #         mycursor.execute(query, (name_input, 1, id_input))
+        #         mydb.commit()
+        #     else:
+        #         self.stop()
+        # else:
+        #     sqlcmd = "INSERT INTO usr_info(id,name,status) VALUES (%s,%s,1)"
+        #     val = (name_input, id_input)
+        #     mycursor.execute(sqlcmd, val)
+        #     mycursor.commit()
+        #     print("[INFO]", mycursor.rowcount, "info inserted")
 
     def collect_trainning(self, roi):
-        goal_dir = os.path.join("../Faces/", self.name)
+        goal_dir = os.path.join("Faces/", self.name)
         cv2.imwrite(goal_dir + "/face_{}.png".format(self.count), roi)
         self.count += 1
-        if self.count == 50:
-
+        if self.count == 70:
+            encoding = encoder.Face_Encoder()
+            encoding.encode_images()
+            print("[INFO] done")
+            self.stop()
 
     def run(self):
         cap = cv2.VideoCapture('/dev/video-camera0')
-        while True:
+        while not self.stop_flag:
             ret, cv_image = cap.read()
 
             if not ret:
@@ -114,7 +157,11 @@ class FaceRecognitionThread(QtCore.QThread):
             self.image_data.emit(pixmap)  # send signal
 
         cap.release()
+        self.finished.emit()
         cv2.destroyAllWindows()
+
+    def stop(self):
+        self.stop_flag = True
 
 
 if __name__ == '__main__':
