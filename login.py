@@ -1,6 +1,8 @@
+import cv2
+import asyncio
+import mysql.connector
 import face_recognition
 import pickle
-import cv2
 
 
 class FaceRecognizer:
@@ -24,14 +26,16 @@ class FaceRecognizer:
                 matches = face_recognition.compare_faces(self.data["encodings"], encoding)
                 name = "Unknown"
                 if True in matches:
-                    # 找到所有匹配人脸的索引，然后初始化一个字典来计算每个人脸被匹配的总次数
                     matchedIdxs = [i for (i, b) in enumerate(matches) if b]
                     counts = {}
                     # 遍历匹配的索引并为每个识别出的人脸维护一个计数
                     for i in matchedIdxs:
                         name = self.data["names"][i]
                         counts[name] = counts.get(name, 0) + 1
-                    name = max(counts, key=counts.get)
+                    if counts[name] > 90:
+                        name = max(counts, key=counts.get)
+                    else:
+                        name = "Unknown"
                 names.append(name)
             for ((top, right, bottom, left), name) in zip(boxes, names):
                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
@@ -44,8 +48,26 @@ class FaceRecognizer:
         cap.release()
         cv2.destroyAllWindows()
 
-    # def updatestatus(self):
-    # TODO: update user state in local database
+    def updatestatus(self, usrname, mydb, mycursor):
+
+        # TODO: move to main.py
+        mydb = mysql.connector.connect(
+            host="localhost",
+            user="boss",
+            password="password",
+            database="myman"
+        )
+        mycursor = mydb.cursor()
+
+        query = "SELECT status FROM usr_info WHERE id = %s"
+        mycursor.execute(query, (usrname,))
+        result = mycursor.fetchone()
+        if result:
+            status = not result[0]
+            query = "UPDATE usr_info SET status = %s WHERE id = %s"
+            values = (status, usrname)
+            mycursor.execute(query, values)
+            mydb.commit()
 
 
 if __name__ == '__main__':

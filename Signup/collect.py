@@ -1,3 +1,5 @@
+import asyncio
+
 import cv2
 import sys
 import os
@@ -82,7 +84,9 @@ class Signup(QWidget):
 
 
 class FaceRecognitionThread(QtCore.QThread):
-    image_data = QtCore.pyqtSignal(QPixmap)  # define a signal for frame update
+
+    # define a signal for frame update
+    image_data = QtCore.pyqtSignal(QPixmap)
     face_cascade = None
     name = ""
     id = ""
@@ -90,48 +94,46 @@ class FaceRecognitionThread(QtCore.QThread):
 
     def __init__(self):
         super(FaceRecognitionThread, self).__init__()
-
         self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.counter = QtCore.QTimer(self)
         self.count = 0
-
         self.stop_flag = False
 
     def set_name_id(self, name_input, id_input):
         self.name = name_input
         self.id = id_input
-        # query = "SELECT * FROM usr_info WHERE id = %s"
-        # mycursor.execute(query, id_input)
-        # result = mycursor.fetchall()
-        #
-        # if len(result) > 0:
-        #     msg = QMessageBox()
-        #     msg.setIcon(QMessageBox.Warning)
-        #     msg.setText("数据已存在")
-        #     msg.setInformativeText("ID为%s的数据已经存在，是否更新？" % id_input)
-        #     msg.setWindowTitle("提示")
-        #     msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        #     if msg.exec_() == QMessageBox.Yes:
-        #         # 如果用户选择更新，则执行更新操作
-        #         query = "UPDATE mytable SET name = %s, status = %s WHERE id = %s"
-        #         mycursor.execute(query, (name_input, 1, id_input))
-        #         mydb.commit()
-        #     else:
-        #         self.stop()
-        # else:
-        #     sqlcmd = "INSERT INTO usr_info(id,name,status) VALUES (%s,%s,1)"
-        #     val = (name_input, id_input)
-        #     mycursor.execute(sqlcmd, val)
-        #     mycursor.commit()
-        #     print("[INFO]", mycursor.rowcount, "info inserted")
+        query = "SELECT * FROM usr_info WHERE id = %s"
+        mycursor.execute(query, (id_input,))
+        result = mycursor.fetchall()
+
+        if len(result) > 0:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("数据已存在")
+            msg.setInformativeText("ID为%s的数据已经存在，是否更新？" % id_input)
+            msg.setWindowTitle("提示")
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            if msg.exec_() == QMessageBox.Yes:
+                # 如果用户选择更新，则执行更新操作
+                query = "UPDATE usr_info SET name = %s, status = %s WHERE id = %s"
+                mycursor.execute(query, (name_input, 1, id_input))
+                mydb.commit()
+            else:
+                self.stop()
+        else:
+            sqlcmd = "INSERT INTO usr_info(id,name,status) VALUES (%s,%s,1)"
+            val = (id_input,name_input)
+            mycursor.execute(sqlcmd, val)
+            mydb.commit()
+            print("[INFO]", mycursor.rowcount, "info inserted")
 
     def collect_trainning(self, roi):
         goal_dir = os.path.join("Faces/", self.name)
         cv2.imwrite(goal_dir + "/face_{}.png".format(self.count), roi)
         self.count += 1
-        if self.count == 70:
+        if self.count == 100:
             encoding = encoder.Face_Encoder()
-            encoding.encode_images()
+            encoding.encode_images(self.name)
             print("[INFO] done")
             self.stop()
 
@@ -144,15 +146,15 @@ class FaceRecognitionThread(QtCore.QThread):
                 continue
 
             # find faces
-            gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-            faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+            faces = self.face_cascade.detectMultiScale(rgb, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
             for (x, y, w, h) in faces:
                 cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 roi = cv_image[y:y + h, x:x + w]
                 self.collect_trainning(roi)
             height, width, channel = cv_image.shape
             bytes_per_line = 3 * width
-            q_image = QImage(cv_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+            q_image = QImage(cv_image.data, width, height, bytes_per_line, QImage.Format_BGR888)
             pixmap = QPixmap(q_image)
             self.image_data.emit(pixmap)  # send signal
 
